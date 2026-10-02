@@ -145,7 +145,7 @@ export const run = async ({
 
       emailMessage = i18n._(
         settings.includeSenderDetails
-          ? msg`${inviterName} on behalf of "${team.name}" has invited you to ${recipientActionVerb} the document "${envelope.title}".`
+          ? msg`${inviterName} has invited you to ${recipientActionVerb} the document "${envelope.title}".`
           : msg`${team.name} has invited you to ${recipientActionVerb} the document "${envelope.title}".`,
       );
     }

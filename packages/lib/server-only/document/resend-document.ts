@@ -151,7 +151,7 @@ export const resendDocument = async ({
         emailMessage =
           envelope.documentMeta.message ||
           i18n._(
-            msg`${user.name || user.email} on behalf of "${envelope.team.name}" has invited you to ${recipientActionVerb} the document "${envelope.title}".`,
+            msg`${user.name || user.email} has invited you to ${recipientActionVerb} the document "${envelope.title}".`,
           );
       }
 

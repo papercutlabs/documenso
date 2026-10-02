@@ -4,8 +4,6 @@ import type { Context as HonoContext } from 'hono';
 
 import { prisma } from '@documenso/prisma';
 
-import { NEXT_PRIVATE_INTERNAL_WEBAPP_URL } from '../../constants/app';
-import { sign } from '../../server-only/crypto/sign';
 import { verify } from '../../server-only/crypto/verify';
 import {
   type JobDefinition,
@@ -59,14 +57,106 @@ export class LocalJobProvider extends BaseJobProvider {
           },
         });
 
-        await this.submitJobToEndpoint({
+        // Execute the handler inline instead of making a flaky HTTP self-call.
+        // Fire-and-forget: triggerJob returns immediately while the handler runs in the background.
+        void this.executeJobInline({
           jobId: pendingJob.id,
-          jobDefinitionId: pendingJob.jobId,
+          definition: job,
           data: options,
           isRetry: false,
         });
       }),
     );
+  }
+
+  private async executeJobInline(options: {
+    jobId: string;
+    definition: JobDefinition;
+    data: SimpleTriggerJobOptions;
+    isRetry: boolean;
+  }) {
+    const { jobId, definition, data, isRetry } = options;
+
+    console.log(`[JOBS]: Triggering job ${data.name} with payload`, data.payload);
+
+    let backgroundJob = await prisma.backgroundJob
+      .update({
+        where: {
+          id: jobId,
+          status: BackgroundJobStatus.PENDING,
+        },
+        data: {
+          status: BackgroundJobStatus.PROCESSING,
+          retried: {
+            increment: isRetry ? 1 : 0,
+          },
+          lastRetriedAt: isRetry ? new Date() : undefined,
+        },
+      })
+      .catch(() => null);
+
+    if (!backgroundJob) {
+      console.log(`[JOBS]: Could not transition job ${jobId} to PROCESSING — skipping`);
+      return;
+    }
+
+    try {
+      await definition.handler({
+        payload: data.payload,
+        io: this.createJobRunIO(jobId),
+      });
+
+      await prisma.backgroundJob.update({
+        where: {
+          id: jobId,
+          status: BackgroundJobStatus.PROCESSING,
+        },
+        data: {
+          status: BackgroundJobStatus.COMPLETED,
+          completedAt: new Date(),
+        },
+      });
+    } catch (error) {
+      console.log(`[JOBS]: Job ${data.name} failed`, error);
+
+      const taskHasExceededRetries = error instanceof BackgroundTaskExceededRetriesError;
+      const jobHasExceededRetries =
+        backgroundJob.retried >= backgroundJob.maxRetries &&
+        !(error instanceof BackgroundTaskFailedError);
+
+      if (taskHasExceededRetries || jobHasExceededRetries) {
+        await prisma.backgroundJob.update({
+          where: {
+            id: jobId,
+            status: BackgroundJobStatus.PROCESSING,
+          },
+          data: {
+            status: BackgroundJobStatus.FAILED,
+            completedAt: new Date(),
+          },
+        });
+
+        return;
+      }
+
+      backgroundJob = await prisma.backgroundJob.update({
+        where: {
+          id: jobId,
+          status: BackgroundJobStatus.PROCESSING,
+        },
+        data: {
+          status: BackgroundJobStatus.PENDING,
+        },
+      });
+
+      // Retry inline rather than via HTTP endpoint.
+      void this.executeJobInline({
+        jobId,
+        definition,
+        data,
+        isRetry: true,
+      });
+    }
   }
 
   public getApiHandler(): (c: HonoContext) => Promise<Response | void> {
@@ -195,9 +285,9 @@ export class LocalJobProvider extends BaseJobProvider {
           },
         });
 
-        await this.submitJobToEndpoint({
+        void this.executeJobInline({
           jobId,
-          jobDefinitionId: backgroundJob.jobId,
+          definition,
           data: options,
           isRetry: true,
         });
@@ -205,40 +295,6 @@ export class LocalJobProvider extends BaseJobProvider {
 
       return c.text('OK', 200);
     };
-  }
-
-  private async submitJobToEndpoint(options: {
-    jobId: string;
-    jobDefinitionId: string;
-    data: SimpleTriggerJobOptions;
-    isRetry?: boolean;
-  }) {
-    const { jobId, jobDefinitionId, data, isRetry } = options;
-
-    const endpoint = `${NEXT_PRIVATE_INTERNAL_WEBAPP_URL()}/api/jobs/${jobDefinitionId}/${jobId}`;
-    const signature = sign(data);
-
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'X-Job-Id': jobId,
-      'X-Job-Signature': signature,
-    };
-
-    if (isRetry) {
-      headers['X-Job-Retry'] = '1';
-    }
-
-    console.log('Submitting job to endpoint:', endpoint);
-    await Promise.race([
-      fetch(endpoint, {
-        method: 'POST',
-        body: JSON.stringify(data),
-        headers,
-      }).catch(() => null),
-      new Promise((resolve) => {
-        setTimeout(resolve, 150);
-      }),
-    ]);
   }
 
   private createJobRunIO(jobId: string): JobRunIO {

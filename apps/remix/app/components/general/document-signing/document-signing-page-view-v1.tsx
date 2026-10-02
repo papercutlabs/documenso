@@ -195,7 +195,7 @@ export const DocumentSigningPageViewV1 = ({
                       <span className="truncate" title={senderName}>
                         {senderName} {senderEmail}
                       </span>{' '}
-                      on behalf of "{document.team?.name}" has invited you to view this document
+                      has invited you to view this document
                     </Trans>
                   ) : (
                     <Trans>
@@ -212,7 +212,7 @@ export const DocumentSigningPageViewV1 = ({
                       <span className="truncate" title={senderName}>
                         {senderName} {senderEmail}
                       </span>{' '}
-                      on behalf of "{document.team?.name}" has invited you to sign this document
+                      has invited you to sign this document
                     </Trans>
                   ) : (
                     <Trans>
@@ -229,7 +229,7 @@ export const DocumentSigningPageViewV1 = ({
                       <span className="truncate" title={senderName}>
                         {senderName} {senderEmail}
                       </span>{' '}
-                      on behalf of "{document.team?.name}" has invited you to approve this document
+                      has invited you to approve this document
                     </Trans>
                   ) : (
                     <Trans>
@@ -246,7 +246,7 @@ export const DocumentSigningPageViewV1 = ({
                       <span className="truncate" title={senderName}>
                         {senderName} {senderEmail}
                       </span>{' '}
-                      on behalf of "{document.team?.name}" has invited you to assist this document
+                      has invited you to assist this document
                     </Trans>
                   ) : (
                     <Trans>

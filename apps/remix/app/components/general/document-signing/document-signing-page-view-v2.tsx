@@ -24,7 +24,6 @@ import { SignFieldSignatureDialog } from '~/components/dialogs/sign-field-signat
 import { SignFieldTextDialog } from '~/components/dialogs/sign-field-text-dialog';
 import { useEmbedSigningContext } from '~/components/embed/embed-signing-context';
 
-import { BrandingLogo } from '../branding-logo';
 import { DocumentSigningAttachmentsPopover } from '../document-signing/document-signing-attachments-popover';
 import { EnvelopeItemSelector } from '../envelope-editor/envelope-file-selector';
 import EnvelopeSignerForm from '../envelope-signing/envelope-signer-form';
@@ -248,12 +247,11 @@ export const DocumentSigningPageViewV2 = () => {
 
               {!hidePoweredBy && (
                 <a
-                  href="https://documenso.com"
+                  href="https://papercut-labs.com"
                   target="_blank"
                   className="fixed bottom-0 right-0 z-40 hidden cursor-pointer rounded-tl bg-primary px-2 py-1 text-xs font-medium text-primary-foreground opacity-60 hover:opacity-100 lg:block"
                 >
-                  <span>Powered by</span>
-                  <BrandingLogo className="ml-2 inline-block h-[14px]" />
+                  <span>Powered by Papercut Labs</span>
                 </a>
               )}
             </div>
